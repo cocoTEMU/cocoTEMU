@@ -5,3 +5,6 @@ sim_build/
 results.xml
 *.vcd
 *.fst
+build/
+test/firmware/*.elf
+test/firmware/*.dtb

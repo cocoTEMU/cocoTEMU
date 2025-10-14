@@ -1,0 +1,15 @@
+/dts-v1/;
+
+/ {
+    axi_bus {
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        regs0: regs@43c00000 {
+            compatible = "custom,mmio-stub";
+            reg = <0x43c00000 0x1000>;
+            interrupts = <0 29 4>;
+            qemu-chardev-id = "cosim0";
+        };
+    };
+};

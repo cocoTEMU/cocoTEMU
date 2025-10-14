@@ -49,6 +49,8 @@ class QemuBridge:
         t = threading.Thread(target=self._recv_loop, daemon=True)
         t.start()
 
+        cocotb.log.info("QemuBridge: poll loop started (poll_ns=%d)", poll_ns)
+
         # Sim-time poll loop: check queue each cycle, drive AXI, return results
         while self._running:
             try:
@@ -58,10 +60,13 @@ class QemuBridge:
                 continue
             if req is None:
                 break
+            cocotb.log.info("QemuBridge: AXI %s addr=0x%X size=%d val=0x%X",
+                            req.op.name, req.addr, req.size, req.val)
             result = await self._axi_handler(req)
+            cocotb.log.info("QemuBridge: AXI result=0x%X", result)
             self._resp_queue.put(result)
 
-        logger.info("QemuBridge: poll loop exited")
+        cocotb.log.info("QemuBridge: poll loop exited")
 
     def stop(self):
         """Signal the bridge to shut down."""
@@ -84,7 +89,7 @@ class QemuBridge:
         self._server_sock.bind(self._sock_path)
         self._server_sock.listen(1)
         self._server_sock.settimeout(1.0)
-        logger.info("QemuBridge listening on %s", self._sock_path)
+        print(f"QemuBridge: listening on {self._sock_path}", flush=True)
 
         try:
             while self._running:
@@ -92,9 +97,12 @@ class QemuBridge:
                     conn, _ = self._server_sock.accept()
                 except socket.timeout:
                     continue
-                logger.info("QemuBridge: client connected")
+                print("QemuBridge: client connected", flush=True)
                 self._handle_client(conn)
-                logger.info("QemuBridge: client disconnected")
+                print("QemuBridge: client disconnected", flush=True)
+                # Signal the poll loop that the session is over
+                self._running = False
+                self._req_queue.put(None)
         finally:
             self._server_sock.close()
             if os.path.exists(self._sock_path):
@@ -102,14 +110,28 @@ class QemuBridge:
 
     def _handle_client(self, conn: socket.socket):
         """Process messages from a single QEMU client connection."""
-        conn.settimeout(1.0)
+        conn.settimeout(2.0)
+        msg_count = 0
+        idle_timeouts = 0
+        max_idle = 3  # exit after 3 consecutive timeouts (6s idle)
         try:
             while self._running:
                 data = self._recv_exact(conn, HDR_SIZE)
                 if data is None:
+                    print("QemuBridge: recv returned None (client closed)", flush=True)
                     break
+                if data == b"":
+                    # Timeout with no data — check for idle
+                    idle_timeouts += 1
+                    if msg_count > 0 and idle_timeouts >= max_idle:
+                        print(f"QemuBridge: idle for {idle_timeouts * 2}s after "
+                              f"{msg_count} messages, assuming firmware done", flush=True)
+                        break
+                    continue
+                idle_timeouts = 0
                 req = MmioRequest.unpack(data)
-                logger.debug("QemuBridge rx: %s", req)
+                msg_count += 1
+                print(f"QemuBridge: rx #{msg_count}: {req}", flush=True)
 
                 # Put request on queue, wait for sim thread to process it
                 self._req_queue.put(req)
@@ -125,15 +147,24 @@ class QemuBridge:
         finally:
             conn.close()
 
-    @staticmethod
-    def _recv_exact(sock: socket.socket, n: int) -> bytes | None:
-        """Receive exactly n bytes, or return None on disconnect/timeout."""
+    def _recv_exact(self, sock: socket.socket, n: int) -> bytes | None:
+        """Receive exactly n bytes.
+
+        Returns:
+            bytes: exactly n bytes of data
+            b"": timeout with no partial data (caller can retry)
+            None: client disconnected
+        """
         buf = bytearray()
         while len(buf) < n:
+            if not self._running:
+                return None
             try:
                 chunk = sock.recv(n - len(buf))
             except socket.timeout:
-                continue
+                if len(buf) == 0:
+                    return b""  # no partial data, safe to return timeout
+                continue  # partial message, keep trying
             if not chunk:
                 return None
             buf.extend(chunk)
