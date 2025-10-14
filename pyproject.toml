@@ -5,16 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cocotemu"
 version = "0.1.0"
-description = "HW/SW co-simulation framework bridging QEMU/Qiling with cocotb"
+description = "HW/SW co-simulation framework bridging QEMU with cocotb"
 requires-python = ">=3.10"
 dependencies = [
     "cocotb>=1.9.0",
     "cocotb-bus>=0.2.1",
     "cocotbext-axi>=0.1.18",
 ]
-
-[project.optional-dependencies]
-qiling = ["qiling>=1.4.6"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

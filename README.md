@@ -1,6 +1,6 @@
 # cocoTEMU
 
-HW/SW co-simulation framework bridging firmware execution on the Zynq PS (via QEMU or Qiling) with PL RTL simulation (via cocotb + Verilator).
+HW/SW co-simulation framework bridging firmware execution on the Zynq PS (via QEMU) with PL RTL simulation (via cocotb + Verilator).
 
 ## Architecture
 
@@ -19,16 +19,20 @@ QEMU (Zynq PS firmware)                              Verilator (PL RTL)
                                    |                        |
                              response sent back             |
                              over socket to QEMU            |
-
-Alternative PS path (Qiling mode):
-  Qiling (firmware emu) --MMIO hooks--> QilingBridge --+--> same AXI path
 ```
 
-The QEMU MMIO stub (`QEMU-MMIO-stub/`) sends 18-byte packed read/write messages over a chardev Unix socket. cocoTEMU receives these, translates them to AXI4-Lite bus transactions, and drives them into a Verilator-simulated HDL design via cocotb.
+A patched QEMU includes an `mmio-stub` device that forwards PL MMIO accesses as 18-byte packed read/write messages over a chardev Unix socket. cocoTEMU receives these, translates them to AXI4-Lite bus transactions, and drives them into a Verilator-simulated HDL design via cocotb.
+
+## Quick Start
+
+```bash
+./setup.sh   # install deps, build patched QEMU, compile firmware
+./run.sh     # launch co-simulation (Verilator + QEMU)
+```
 
 ## Wire Protocol
 
-Matches `mmio_stub_msg_hdr` from `QEMU-MMIO-stub/src/include/hw/misc/mmio-stub.h`:
+Matches `mmio_stub_msg_hdr` from the QEMU mmio-stub device:
 
 | Offset | Size | Field | Description |
 |--------|------|-------|-------------|

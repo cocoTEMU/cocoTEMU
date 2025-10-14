@@ -24,7 +24,7 @@ trap cleanup EXIT
 # start verilator / cocotb (PL side)
 echo "Starting PL sim..."
 cd "$DIR/test"
-COCOTEMU_BRIDGE=qemu COCOTEMU_SOCK="$SOCK" make MODULE=test_cosim 2>&1 | \
+COCOTEMU_SOCK="$SOCK" make MODULE=test_cosim 2>&1 | \
     stdbuf -oL sed 's/^/  [PL] /' &
 SIM_PID=$!
 
