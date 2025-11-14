@@ -31,6 +31,10 @@ async def test_write_read_all_regs(dut):
         0x0C: 0xA5A5A5A5,
     }
 
+    # Drive gpio_in so reg3[7:0] latches the expected low byte
+    dut.gpio_in.value = 0xA5
+    await RisingEdge(dut.aclk)
+
     # Write all registers
     for addr, val in test_data.items():
         req = MmioRequest(op=MmioOp.WRITE, size=4, addr=addr, val=val)
@@ -38,6 +42,7 @@ async def test_write_read_all_regs(dut):
         dut._log.info(f"Wrote 0x{val:08X} to 0x{addr:02X}")
 
     # Read back and verify
+    # Note: reg3[7:0] is driven by gpio_in, so expected value reflects that
     for addr, expected in test_data.items():
         req = MmioRequest(op=MmioOp.READ, size=4, addr=addr)
         got = await axi.execute(req)

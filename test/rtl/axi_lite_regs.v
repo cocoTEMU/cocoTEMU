@@ -46,7 +46,11 @@ module axi_lite_regs #(
     output reg  [DATA_WIDTH-1:0]   s_axil_rdata,
     output reg  [1:0]              s_axil_rresp,
     output reg                     s_axil_rvalid,
-    input  wire                    s_axil_rready
+    input  wire                    s_axil_rready,
+
+    /* GPIO ports */
+    output wire [7:0]              gpio_out,
+    input  wire [7:0]              gpio_in
 );
 
     localparam NUM_REGS  = 4;
@@ -119,8 +123,14 @@ module axi_lite_regs #(
             end else if (s_axil_bvalid && s_axil_bready) begin
                 s_axil_bvalid <= 1'b0;
             end
+            /* Latch gpio_in into reg3[7:0] every cycle (overrides AXI writes) */
+            regs[3][7:0] <= gpio_in;
         end
     end
+
+    /* ----- GPIO wiring ----- */
+    assign gpio_out = regs[0][7:0];
+    // gpio_in latch is inside the write-response block above
 
     /* ----- Read address + data ----- */
     always @(posedge aclk) begin
