@@ -1,0 +1,37 @@
+<mxfile host="app.diagrams.net" type="device">
+  <diagram name="Architecture" id="architecture">
+    <mxGraphModel dx="960" dy="300" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="grp" value="cocoTEMU (cocotb)" style="rounded=1;dashed=1;dashPattern=8 4;fillColor=none;strokeColor=#999999;fontStyle=3;verticalAlign=top;fontSize=13;spacingTop=4;container=1;" vertex="1" parent="1">
+          <mxGeometry x="270" y="30" width="420" height="240" as="geometry"/>
+        </mxCell>
+        <mxCell id="qemu" value="&lt;b&gt;QEMU&lt;/b&gt;&lt;br/&gt;Zynq PS Firmware" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="10" y="105" width="155" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="bridge" value="&lt;b&gt;QemuBridge&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="300" y="105" width="140" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="axi" value="&lt;b&gt;CocotemuAxiMaster&lt;/b&gt;&lt;br/&gt;(cocotbext-axi)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="500" y="105" width="175" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="dut" value="&lt;b&gt;Verilator&lt;/b&gt;&lt;br/&gt;PL RTL / DUT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="790" y="105" width="160" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1" value="chardev Unix socket&lt;br/&gt;&lt;i&gt;mmio_stub_msg_hdr&lt;/i&gt; (18 B)" style="fontSize=10;" edge="1" parent="1" source="qemu" target="bridge">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e2" value="" edge="1" parent="1" source="bridge" target="axi">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e3" value="AXI4-Lite" style="fontSize=11;" edge="1" parent="1" source="axi" target="dut">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4" value="response" style="dashed=1;fontSize=10;" edge="1" parent="1" source="dut" target="qemu">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

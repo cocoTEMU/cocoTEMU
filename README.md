@@ -4,22 +4,7 @@ HW/SW co-simulation framework bridging firmware execution on the Zynq PS (via QE
 
 ## Architecture
 
-```
-QEMU (Zynq PS firmware)                              Verilator (PL RTL)
-  |                                                         |
-  | mmio_stub_msg_hdr (18 bytes, <BBQQ)                     |
-  |--- chardev Unix socket ---> QemuBridge                  |
-                                   |                        |
-                                   v                        |
-                             CocotemuAxiMaster              |
-                             (cocotbext-axi)                |
-                                   |                        |
-                                   +---- AXI4-Lite -------->| DUT
-                                   |<--- response ----------|
-                                   |                        |
-                             response sent back             |
-                             over socket to QEMU            |
-```
+![Architecture](img/architecture.drawio.svg)
 
 A patched QEMU includes an `mmio-stub` device that forwards PL MMIO accesses as 18-byte packed read/write messages over a chardev Unix socket. cocoTEMU receives these, translates them to AXI4-Lite bus transactions, and drives them into a Verilator-simulated HDL design via cocotb.
 
