@@ -32,5 +32,5 @@ Responses: read returns `size` bytes of data (LE); write returns 1-byte ack (`0x
 
 ## TODO
 
-- [] extend [cocodbg](https://github.com/NeKroFR/cocodbg) to be able to have a debugger for PS/PL cosimulation
-- [] create an MCP server interracting with the debugger
+- [ ] extend [cocodbg](https://github.com/NeKroFR/cocodbg) to be able to have a debugger for PS/PL cosimulation
+- [ ] create an MCP server interracting with the debugger
