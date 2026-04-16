@@ -29,3 +29,8 @@ Matches `mmio_stub_msg_hdr` from the QEMU mmio-stub device:
 Total: 18 bytes, `struct.pack("<BBQQ", op, size, addr, val)`
 
 Responses: read returns `size` bytes of data (LE); write returns 1-byte ack (`0x01`).
+
+## TODO
+
+- [] extend [cocodbg](https://github.com/NeKroFR/cocodbg) to be able to have a debugger for PS/PL cosimulation
+- [] create an MCP server interracting with the debugger
