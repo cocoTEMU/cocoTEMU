@@ -16,7 +16,8 @@ cleanup() {
     echo ""
     echo "Shutting down..."
     [ -n "${QEMU_PID:-}" ] && kill "$QEMU_PID" 2>/dev/null && wait "$QEMU_PID" 2>/dev/null
-    [ -n "${SIM_PID:-}" ]  && kill "$SIM_PID"  2>/dev/null && wait "$SIM_PID"  2>/dev/null
+    # The sim runs in its own session, so kill the whole group (make and the sim binary).
+    [ -n "${SIM_PID:-}" ]  && kill -- "-$SIM_PID" 2>/dev/null && wait "$SIM_PID" 2>/dev/null
     rm -f "$SOCK"
 }
 trap cleanup EXIT
@@ -24,8 +25,9 @@ trap cleanup EXIT
 # start verilator / cocotb (PL side)
 echo "Starting PL sim..."
 cd "$DIR/test"
-COCOTEMU_SOCK="$SOCK" make MODULE=test_cosim 2>&1 | \
-    stdbuf -oL sed 's/^/  [PL] /' &
+# Process substitution keeps $! on the real process. In a pipeline it would be the sed PID.
+COCOTEMU_SOCK="$SOCK" setsid make MODULE=test_cosim \
+    > >(stdbuf -oL sed 's/^/  [PL] /') 2>&1 &
 SIM_PID=$!
 
 # wait for the unix socket
@@ -45,7 +47,7 @@ echo "Starting QEMU..."
     -nographic \
     -chardev socket,id=cosim0,path="$SOCK",server=off \
     -device loader,file="$FW/test_fw.elf",cpu-num=0 \
-    2>&1 | stdbuf -oL sed 's/^/  [PS] /' &
+    > >(stdbuf -oL sed 's/^/  [PS] /') 2>&1 &
 QEMU_PID=$!
 
 echo "Co-simulation running."
