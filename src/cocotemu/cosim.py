@@ -18,6 +18,16 @@ from .gpio_protocol import GpioDir, GpioSignal
 logger = logging.getLogger(__name__)
 
 
+def _env_seconds(name: str, default: float) -> float | None:
+    """Read a seconds value from the environment. 'none' or '0' means disabled."""
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    if raw.strip().lower() in ("none", "0", ""):
+        return None
+    return float(raw)
+
+
 async def _reset(dut, cycles=5):
     dut.aresetn.value = 0
     await ClockCycles(dut.aclk, cycles)
@@ -32,6 +42,8 @@ async def cosim_test(dut):
     COCOTEMU_SOCK      - Unix socket path (default /tmp/cocotemu.sock)
     COCOTEMU_GPIO_SOCK - GPIO socket path (default /tmp/cocotemu_gpio.sock)
     COCOTEMU_GPIO      - set to "0" to disable GPIO bridge
+    COCOTEMU_IDLE_EXIT_S - idle seconds before the session ends (default 6, "none" disables)
+    COCOTEMU_EXIT_ON_DISCONNECT - set to "0" to keep accepting clients
     """
     clock = Clock(dut.aclk, 10, units="ns")
     cocotb.start_soon(clock.start())
@@ -40,7 +52,11 @@ async def cosim_test(dut):
     axi = CocotemuAxiMaster(dut)
     sock_path = os.environ.get("COCOTEMU_SOCK", "/tmp/cocotemu.sock")
 
-    bridge = QemuBridge(axi.execute, sock_path=sock_path)
+    idle_exit_s = _env_seconds("COCOTEMU_IDLE_EXIT_S", 6.0)
+    exit_on_disconnect = os.environ.get("COCOTEMU_EXIT_ON_DISCONNECT", "1") != "0"
+    bridge = QemuBridge(axi.execute, sock_path=sock_path,
+                        idle_exit_s=idle_exit_s,
+                        exit_on_disconnect=exit_on_disconnect)
     logger.info("Starting QEMU bridge on %s", sock_path)
 
     # --- GPIO bridge ---

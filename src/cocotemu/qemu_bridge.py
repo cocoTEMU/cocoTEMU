@@ -24,14 +24,25 @@ class QemuBridge:
         _req_queue, blocks on _resp_queue for the result, sends response
     """
 
-    def __init__(self, axi_handler, sock_path="/tmp/cocotemu.sock"):
+    # Socket read timeout in seconds, also the granularity of the idle check.
+    _CLIENT_TIMEOUT_S = 2.0
+
+    def __init__(self, axi_handler, sock_path="/tmp/cocotemu.sock",
+                 idle_exit_s: float | None = 6.0, exit_on_disconnect: bool = True):
         """
         Args:
             axi_handler: async callable(MmioRequest) -> int
             sock_path: Unix socket path to listen on
+            idle_exit_s: end the session after this many idle seconds once a message was
+                seen. None disables it, which a debugger needs because a paused
+                firmware is idle by design.
+            exit_on_disconnect: end the session when the client disconnects. When False
+                the bridge accepts the next client instead.
         """
         self._axi_handler = axi_handler
         self._sock_path = sock_path
+        self._idle_exit_s = idle_exit_s
+        self._exit_on_disconnect = exit_on_disconnect
         self._running = False
         self._server_sock = None
         self._req_queue = queue.Queue()
@@ -98,8 +109,10 @@ class QemuBridge:
                 except socket.timeout:
                     continue
                 print("QemuBridge: client connected", flush=True)
-                self._handle_client(conn)
+                idle_exit = self._handle_client(conn)
                 print("QemuBridge: client disconnected", flush=True)
+                if not self._exit_on_disconnect and not idle_exit:
+                    continue
                 # Signal the poll loop that the session is over
                 self._running = False
                 self._req_queue.put(None)
@@ -108,12 +121,14 @@ class QemuBridge:
             if os.path.exists(self._sock_path):
                 os.unlink(self._sock_path)
 
-    def _handle_client(self, conn: socket.socket):
-        """Process messages from a single QEMU client connection."""
-        conn.settimeout(2.0)
+    def _handle_client(self, conn: socket.socket) -> bool:
+        """Process messages from one QEMU client. Returns True if it ended on the idle limit."""
+        conn.settimeout(self._CLIENT_TIMEOUT_S)
         msg_count = 0
         idle_timeouts = 0
-        max_idle = 3  # exit after 3 consecutive timeouts (6s idle)
+        idle_exit = False
+        max_idle = (None if self._idle_exit_s is None
+                    else max(1, round(self._idle_exit_s / self._CLIENT_TIMEOUT_S)))
         try:
             while self._running:
                 data = self._recv_exact(conn, HDR_SIZE)
@@ -123,9 +138,11 @@ class QemuBridge:
                 if data == b"":
                     # Timeout with no data — check for idle
                     idle_timeouts += 1
-                    if msg_count > 0 and idle_timeouts >= max_idle:
+                    if (max_idle is not None and msg_count > 0
+                            and idle_timeouts >= max_idle):
                         print(f"QemuBridge: idle for {idle_timeouts * 2}s after "
                               f"{msg_count} messages, assuming firmware done", flush=True)
+                        idle_exit = True
                         break
                     continue
                 idle_timeouts = 0
@@ -146,6 +163,7 @@ class QemuBridge:
             logger.warning("QemuBridge: connection error: %s", exc)
         finally:
             conn.close()
+        return idle_exit
 
     def _recv_exact(self, sock: socket.socket, n: int) -> bytes | None:
         """Receive exactly n bytes.
